@@ -1,6 +1,7 @@
 import time
 import sys
 import os
+import json
 from pathlib import Path
 
 import torch
@@ -31,9 +32,8 @@ from yolov5.utils.general import (
 from yolov5.utils.torch_utils import select_device
 
 # Configuration for Firebase
-config = {
-    # configuration goes here
-}
+with open('firebaseConfig.json', 'r') as conf:
+    config = json.load(conf)
 
 firebase = pyrebase.initialize_app(config)
 storage = firebase.storage()

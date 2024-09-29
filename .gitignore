@@ -13,4 +13,5 @@ __pycache__/
 # Ignore system-specific files
 .DS_Store
 Thumbs.db
-firebasesdk.json
+serviceAccount.json
+firebaseConfig.json

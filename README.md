@@ -36,8 +36,8 @@ Before running the application, ensure that the following are installed on your 
    ```
    
 4. **Configure Firebase**:
-   - Update the Firebase configuration in `src/main.py` with your Firebase project credentials.
    - Add your `serviceAccount.json` file to the `src/` directory to enable Firebase integration.
+   - Copy your Firebase configuration to `firebaseConfig.json`.
 
 5. **Download YOLOv5 model weights**:
    - Download the pre-trained YOLOv5 model (e.g., `yolov5s.pt`) and place it in the `model/` folder.
