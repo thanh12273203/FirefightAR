@@ -4,10 +4,11 @@ import os
 from pathlib import Path
 
 import torch
+import imageio
 import pyrebase
 from ultralytics.utils.plotting import Annotator
 
-# # Install YOLOv5 by cloning the repository (only use first time)
+# # Install YOLOv5 by cloning the repository
 # !git clone https://github.com/ultralytics/yolov5
 
 sys.path.append('src/yolov5')
@@ -37,6 +38,43 @@ config = {
 firebase = pyrebase.initialize_app(config)
 storage = firebase.storage()
 
+def save_and_upload_video(video_frames, fps, filename, storage):
+    local_video_path = f"{filename}.mp4"
+    h, w, _ = video_frames[0].shape
+    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+    
+    # Create the video writer
+    video_writer = cv2.VideoWriter(local_video_path, fourcc, fps, (w, h))
+
+    # Write each frame to the video
+    for frame in video_frames:
+        video_writer.write(frame)
+
+    video_writer.release()
+
+    # Upload the video to Firebase Storage
+    storage.child(f"videos/{filename}.mp4").put(local_video_path)
+
+    # Optionally, remove the local video file after upload
+    os.remove(local_video_path)
+
+# Function to save and upload a GIF to Firebase Storage
+def save_and_upload_gif(frames, filename, storage):
+    # Convert each frame from BGR to RGB
+    rgb_frames = [cv2.cvtColor(frame, cv2.COLOR_BGR2RGB) for frame in frames]
+    
+    # Save the GIF to the local system
+    local_gif_path = f"{filename}.gif"
+    
+    # Save the frames as a GIF (duration is 0.5 seconds per frame)
+    imageio.mimsave(local_gif_path, rgb_frames, format='GIF', duration=0.5)
+
+    # Upload the GIF to Firebase Storage
+    storage.child(f"gifs/{filename}.gif").put(local_gif_path)
+
+    # Optionally, remove the local GIF file after upload
+    os.remove(local_gif_path)
+
 # Save the image as a JPG and upload it to Firebase Storage
 def save_and_upload_frame(image, filename, storage):
     # Save the frame as a .jpg file
@@ -55,7 +93,7 @@ def run_detection(
     source="0",  # file/dir/URL/glob/screen/0(webcam)
     data="yolov5/data/coco128.yaml",  # dataset.yaml path
     imgsz=(640, 640),  # inference size (height, width)
-    conf_thres=0.25,  # confidence threshold
+    conf_thres=0.3,  # confidence threshold
     iou_thres=0.45,  # NMS IOU threshold
     max_det=1000,  # maximum detections per image
     device="",  # cuda device, i.e. 0 or 0,1,2,3 or cpu
@@ -116,10 +154,10 @@ def run_detection(
     # Initialize a single vid_writer for the entire session
     vid_writer = None
 
-    # Initialize variables for dynamic FPS calculation
-    prev_time = time.time()
-    save_interval = 5
-    last_save_time = time.time()
+    # Variables to capture and store frames for the 10-second video
+    video_frames = []
+    video_interval = 10  # Capture and upload a video every 10 seconds
+    last_video_time = time.time()
 
     # Run inference for both models (fire and human detection)
     model.warmup(imgsz=(1 if pt or model.triton else bs, 3, *imgsz))  # warmup for fire model
@@ -179,26 +217,24 @@ def run_detection(
 
         # Save video or image results
         if save_img:
-            # Calculate the actual FPS dynamically
-            current_time = time.time()
-            time_diff = current_time - prev_time
-            fps = 1 / time_diff if time_diff > 0 else 30  # default to 2 if time_diff is too small
-            prev_time = current_time
-
             if dataset.mode == "image":
                 cv2.imwrite(save_path, im0)
             else:  # 'video' or 'stream'
                 if vid_writer is None:
                     w, h = im0.shape[1], im0.shape[0]
                     save_path = str(Path(save_path).with_suffix(".mp4"))  # force *.mp4 suffix on results videos
-                    vid_writer = cv2.VideoWriter(save_path, cv2.VideoWriter_fourcc(*"mp4v"), fps, (w, h))
+                    vid_writer = cv2.VideoWriter(save_path, cv2.VideoWriter_fourcc(*"mp4v"), 3, (w, h))
                 vid_writer.write(im0)
 
-        # Save a frame every 5 seconds
+        # Add the current frame to the video frames list
+        video_frames.append(im0)
+
+        # Check if 10 seconds have passed to create and upload a 10-second video
         current_time = time.time()
-        if current_time - last_save_time >= save_interval:
-            save_and_upload_frame(im0, "camera_1", storage)
-            last_save_time = current_time
+        if current_time - last_video_time >= video_interval:
+            save_and_upload_video(video_frames, 3, "camera_1", storage)
+            video_frames = []
+            last_video_time = current_time
 
         seen += 1
 
