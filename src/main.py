@@ -52,9 +52,6 @@ def save_and_upload_video(video_frames, fps, filename, storage):
 
     video_writer.release()
 
-    import os
-    os.system(f'"C:\ffmpeg\ffmpeg-2024-09-26-git-f43916e217-full_build\bin\ffmpeg.exe" -i {filename}.mp4 -vcodec libx264 -acodec aac {filename}.mp4')
-
     # Upload the video to Firebase Storage
     storage.child(f"videos/{filename}.mp4").put(local_video_path)
 
