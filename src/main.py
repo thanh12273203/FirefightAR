@@ -5,7 +5,6 @@ import json
 from pathlib import Path
 
 import torch
-import imageio
 import pyrebase
 from ultralytics.utils.plotting import Annotator
 
