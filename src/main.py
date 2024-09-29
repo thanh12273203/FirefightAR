@@ -52,28 +52,14 @@ def save_and_upload_video(video_frames, fps, filename, storage):
 
     video_writer.release()
 
+    import os
+    os.system(f'"C:\ffmpeg\ffmpeg-2024-09-26-git-f43916e217-full_build\bin\ffmpeg.exe" -i {filename}.mp4 -vcodec libx264 -acodec aac {filename}.mp4')
+
     # Upload the video to Firebase Storage
     storage.child(f"videos/{filename}.mp4").put(local_video_path)
 
     # Optionally, remove the local video file after upload
     os.remove(local_video_path)
-
-# Function to save and upload a GIF to Firebase Storage
-def save_and_upload_gif(frames, filename, storage):
-    # Convert each frame from BGR to RGB
-    rgb_frames = [cv2.cvtColor(frame, cv2.COLOR_BGR2RGB) for frame in frames]
-    
-    # Save the GIF to the local system
-    local_gif_path = f"{filename}.gif"
-    
-    # Save the frames as a GIF (duration is 0.5 seconds per frame)
-    imageio.mimsave(local_gif_path, rgb_frames, format='GIF', duration=0.5)
-
-    # Upload the GIF to Firebase Storage
-    storage.child(f"gifs/{filename}.gif").put(local_gif_path)
-
-    # Optionally, remove the local GIF file after upload
-    os.remove(local_gif_path)
 
 # Save the image as a JPG and upload it to Firebase Storage
 def save_and_upload_frame(image, filename, storage):
@@ -154,6 +140,10 @@ def run_detection(
     # Initialize a single vid_writer for the entire session
     vid_writer = None
 
+    # Initialize variables for dynamic FPS calculation
+    save_interval = 5
+    last_save_time = time.time()
+
     # Variables to capture and store frames for the 10-second video
     video_frames = []
     video_interval = 10  # Capture and upload a video every 10 seconds
@@ -231,6 +221,9 @@ def run_detection(
 
         # Check if 10 seconds have passed to create and upload a 10-second video
         current_time = time.time()
+        if current_time - last_save_time >= save_interval:
+            save_and_upload_frame(im0, "camera_1", storage)
+            last_save_time = current_time
         if current_time - last_video_time >= video_interval:
             save_and_upload_video(video_frames, 3, "camera_1", storage)
             video_frames = []
